@@ -3,7 +3,7 @@
 version       = "1.0.0"
 author        = "WyattBlue"
 description   = "A fast, branchless, sorting algorithm"
-license       = "MIT"
+license       = "Unlicense"
 srcDir        = "src"
 
 
