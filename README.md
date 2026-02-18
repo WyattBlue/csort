@@ -10,7 +10,8 @@ By being in constant-time, no matter what the data is, it makes it immune to tim
 import csort 
 
 var a = @[3, 2, 5, 1, 4]
-sort(a)
+a.sort()
+echo a
 
 > @[1, 2, 3, 4, 5]
 ```
