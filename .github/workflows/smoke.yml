@@ -19,16 +19,24 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-          - os: ubuntu-latest
+          - os: macos-15-intel
+          - os: ubuntu-24.04
+          - os: ubuntu-24.04-arm
           - os: windows-latest
+          - os: windows-11-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Nim (macOS)
-        if: runner.os == 'macOS'
+      - name: Install Homebrew
+        if: runner.os == 'Linux'
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+      - name: Nim (Homebrew)
+        if: runner.os != 'Windows'
         run: brew install nim
       - name: Nim
-        if: runner.os != 'macOS'
+        if: runner.os == 'Windows'
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: "stable"
