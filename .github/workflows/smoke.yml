@@ -1,0 +1,40 @@
+name: smoke
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - master
+  pull_request:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - master
+jobs:
+  main:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-latest
+          - os: ubuntu-latest
+          - os: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Nim (macOS)
+        if: runner.os == 'macOS'
+        run: brew install nim
+      - name: Nim
+        if: runner.os != 'macOS'
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "stable"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: GCC/Clang version
+        run: nim --version && gcc --version
+      - name: Test
+        run: nimble test
+

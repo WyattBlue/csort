@@ -18,6 +18,8 @@ echo a
 
 ## Performance
 
+The following benchmarks compare csort with Nim's standard library sort.
+
 ### AArch64 MacOS Benchmark:
 
 | n | int32 speedup | int64 speedup |
