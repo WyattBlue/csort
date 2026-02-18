@@ -127,6 +127,60 @@ echo &"  int64: {passed} passed, {failed} failed"
 
 let p64 = passed
 let f64 = failed
+passed = 0
+failed = 0
+
+# -- int tests --
+echo "=== int ==="
+
+block: # empty
+  var a: seq[int]
+  csort.sort(a)
+  check("empty", a.len == 0)
+
+block: # single
+  var a = @[1]
+  csort.sort(a)
+  check("single", a == @[1])
+
+block: # two elements
+  var a = @[2, 1]
+  csort.sort(a)
+  check("two", a == @[1, 2])
+
+block: # reverse sorted
+  var a = @[5, 4, 3, 2, 1]
+  csort.sort(a)
+  check("reverse sorted", a == @[1, 2, 3, 4, 5])
+
+block: # all equal
+  var a = @[7, 7, 7, 7, 7]
+  csort.sort(a)
+  check("all equal", a == @[7, 7, 7, 7, 7])
+
+block: # negatives
+  var a = @[-5, 3, -1, 0, -100, 42, 7]
+  csort.sort(a)
+  check("negatives", a == @[-100, -5, -1, 0, 3, 7, 42])
+
+block: # min/max
+  var a = @[high(int), low(int), 0, 1, -1]
+  csort.sort(a)
+  check("min/max", a[0] == low(int) and a[4] == high(int))
+
+for n in 2 .. 1000:
+  var a = newSeq[int](n)
+  for i in 0 ..< n:
+    a[i] = rand(-1_000_000 .. 1_000_000)
+  var expected = a
+  expected.sort()
+  csort.sort(a)
+  check(&"random n={n}", a == expected)
+
+echo &"  int: {passed} passed, {failed} failed"
+
+let pInt = passed
+let fInt = failed
 
 # Large sizes
 passed = 0
@@ -291,7 +345,7 @@ for n in 2 .. 1000:
 
 echo &"  float64: {passed} passed, {failed} failed"
 
-let totalTests = p32 + f32 + p64 + f64 + pLarge + fLarge + pF32 + fF32 + passed + failed
-let totalPass  = p32 + p64 + pLarge + pF32 + passed
-let totalFail  = f32 + f64 + fLarge + fF32 + failed
+let totalTests = p32 + f32 + p64 + f64 + pInt + fInt + pLarge + fLarge + pF32 + fF32 + passed + failed
+let totalPass  = p32 + p64 + pInt + pLarge + pF32 + passed
+let totalFail  = f32 + f64 + fInt + fLarge + fF32 + failed
 echo &"\nTotal: {totalPass} passed, {totalFail} failed out of {totalTests}"

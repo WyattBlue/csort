@@ -269,6 +269,13 @@ proc cSortImpl[T: int32 | int64](items: var openArray[T]) =
 proc sort*(items: var openArray[int32]) = cSortImpl(items)
 proc sort*(items: var openArray[int64]) = cSortImpl(items)
 
+proc sort*(items: var openArray[int]) =
+  if items.len < 2: return
+  when sizeof(int) == 4:
+    cSortCore(cast[ptr UncheckedArray[int32]](addr items[0]), items.len)
+  else:
+    cSortCore(cast[ptr UncheckedArray[int64]](addr items[0]), items.len)
+
 # Float sort: transform bit-patterns to sort keys, sort as integers, untransform.
 # Resulting order: -NaN < -INF < ... < -0.0 < +0.0 < ... < +INF < +NaN
 

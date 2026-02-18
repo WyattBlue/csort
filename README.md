@@ -28,5 +28,5 @@ sort(a)
 For sequences bigger than a million, the network scaling `O(n log^2 n)` catches up.
 
 ## Prior Art
-Based on Ken Batcher's [1968 paper](https://www.cs.kent.edu/~batcher/sort.pdf) and Daniel J. Bernstein's [work](https://sorting.cr.yp.to/). The Nim implementation is most similar to this [blog post's](https://00f.net/2026/02/17/sorting-without-leaking-secrets/) [implementation](https://github.com/jedisct1/zig-djbsort).
+Based on Ken Batcher's [1968 paper](https://www.cs.kent.edu/~batcher/sort.pdf) and Daniel J. Bernstein's [work](https://sorting.cr.yp.to/).
 
