@@ -101,6 +101,23 @@ proc minmax(a, b: var int64) {.inline.} =
   a = a xor cast[int64](masked)
   b = b xor cast[int64](masked)
 
+# Maps IEEE 754 float bit-patterns to an integer sort key that preserves
+# the natural float ordering under signed integer comparison:
+#   - positive floats (sign=0): key = bits unchanged (already ordered)
+#   - negative floats (sign=1): key = bits ^ 0x7FFFFFFF (flip lower bits,
+#     inverting the order so more-negative floats get smaller keys)
+# The function is its own inverse, so applying it again restores the original.
+
+proc floatSortKey(s: int32): int32 {.inline.} =
+  let sign = cast[uint32](s) shr 31    # 1 if negative, 0 if positive
+  let mask = cast[int32](0'u32 - sign) # all 1s if negative, 0 if positive
+  s xor (mask and high(int32))
+
+proc floatSortKey(s: int64): int64 {.inline.} =
+  let sign = cast[uint64](s) shr 63
+  let mask = cast[int64](0'u64 - sign)
+  s xor (mask and high(int64))
+
 proc cascade[T: int32 | int64](data: ptr UncheckedArray[T], j, p, q: int) {.inline.} =
   var a = data[j + p]
   var r = q
@@ -109,12 +126,11 @@ proc cascade[T: int32 | int64](data: ptr UncheckedArray[T], j, p, q: int) {.inli
     r = r shr 1
   data[j + p] = a
 
-# Core sorting network, templated over element type and SIMD width
-proc cSortImpl[T: int32 | int64](items: var openArray[T]) =
-  let n = items.len
+# Core sorting network, templated over element type and SIMD width.
+# Operates directly on a raw pointer + length so float sorts can reuse it
+# after transforming their data in place via floatSortKey.
+proc cSortCore[T: int32 | int64](data: ptr UncheckedArray[T], n: int) =
   if n < 2: return
-
-  let data = cast[ptr UncheckedArray[T]](addr items[0])
 
   const vecLen = when T is int32: VecLen32 else: VecLen64
 
@@ -246,8 +262,31 @@ proc cSortImpl[T: int32 | int64](items: var openArray[T]) =
 
     p = p shr 1
 
+proc cSortImpl[T: int32 | int64](items: var openArray[T]) =
+  if items.len < 2: return
+  cSortCore(cast[ptr UncheckedArray[T]](addr items[0]), items.len)
+
 proc sort*(items: var openArray[int32]) = cSortImpl(items)
 proc sort*(items: var openArray[int64]) = cSortImpl(items)
+
+# Float sort: transform bit-patterns to sort keys, sort as integers, untransform.
+# Resulting order: -NaN < -INF < ... < -0.0 < +0.0 < ... < +INF < +NaN
+
+proc sort*(items: var openArray[float32]) =
+  let n = items.len
+  if n < 2: return
+  let idata = cast[ptr UncheckedArray[int32]](addr items[0])
+  for i in 0 ..< n: idata[i] = floatSortKey(idata[i])
+  cSortCore(idata, n)
+  for i in 0 ..< n: idata[i] = floatSortKey(idata[i])
+
+proc sort*(items: var openArray[float64]) =
+  let n = items.len
+  if n < 2: return
+  let idata = cast[ptr UncheckedArray[int64]](addr items[0])
+  for i in 0 ..< n: idata[i] = floatSortKey(idata[i])
+  cSortCore(idata, n)
+  for i in 0 ..< n: idata[i] = floatSortKey(idata[i])
 
 when isMainModule:
   block:
@@ -271,3 +310,13 @@ when isMainModule:
     var odd = @[5'i64, 2, 8, 1, 9, 3, 7]
     sort(odd)
     echo "int64 odd:    ", odd
+
+  block:
+    var data = @[-3.0'f32, 1.5, -0.0, 0.0, 2.5, -1.0]
+    sort(data)
+    echo "float32:      ", data
+
+  block:
+    var data = @[-3.0'f64, 1.5, -0.0, 0.0, 2.5, -1.0]
+    sort(data)
+    echo "float64:      ", data

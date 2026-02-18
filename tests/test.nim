@@ -1,4 +1,4 @@
-import std/[algorithm, random, strformat]
+import std/[random, strformat]
 import csort
 
 randomize(42)
@@ -125,6 +125,9 @@ for n in 2 .. 1000:
 
 echo &"  int64: {passed} passed, {failed} failed"
 
+let p64 = passed
+let f64 = failed
+
 # Large sizes
 passed = 0
 failed = 0
@@ -151,5 +154,144 @@ for n in [10_000, 50_000, 100_000, 123_456]:
 
 echo &"  large: {passed} passed, {failed} failed"
 
-let totalPassed = p32 + f32 + passed + failed
-echo &"\nTotal: {p32 + passed} passed, {f32 + failed} failed out of {totalPassed}"
+let pLarge = passed
+let fLarge = failed
+passed = 0
+failed = 0
+
+# -- float32 tests --
+echo "=== float32 ==="
+
+block: # empty
+  var a: seq[float32]
+  csort.sort(a)
+  check("empty", a.len == 0)
+
+block: # single
+  var a = @[1.0'f32]
+  csort.sort(a)
+  check("single", a == @[1.0'f32])
+
+block: # two elements
+  var a = @[2.0'f32, 1.0'f32]
+  csort.sort(a)
+  check("two", a == @[1.0'f32, 2.0'f32])
+
+block: # already sorted
+  var a = @[1.0'f32, 2.0, 3.0, 4.0, 5.0]
+  csort.sort(a)
+  check("already sorted", a == @[1.0'f32, 2.0, 3.0, 4.0, 5.0])
+
+block: # reverse sorted
+  var a = @[5.0'f32, 4.0, 3.0, 2.0, 1.0]
+  csort.sort(a)
+  check("reverse sorted", a == @[1.0'f32, 2.0, 3.0, 4.0, 5.0])
+
+block: # all equal
+  var a = @[7.0'f32, 7.0, 7.0, 7.0, 7.0]
+  csort.sort(a)
+  check("all equal", a == @[7.0'f32, 7.0, 7.0, 7.0, 7.0])
+
+block: # negatives
+  var a = @[-5.0'f32, 3.0, -1.0, 0.0, -100.0, 42.0, 7.0]
+  csort.sort(a)
+  var expected = @[-5.0'f32, 3.0, -1.0, 0.0, -100.0, 42.0, 7.0]
+  expected.sort()
+  check("negatives", a == expected)
+
+block: # infinities sort at the ends
+  let posInf = float32(1.0 / 0.0)
+  let negInf = float32(-1.0 / 0.0)
+  var a = @[posInf, 1.0'f32, -1.0'f32, negInf, 0.0'f32]
+  csort.sort(a)
+  check("inf: -Inf first", a[0] == negInf)
+  check("inf: +Inf last",  a[4] == posInf)
+  check("inf: middle ordered", a[1] < a[2] and a[2] < a[3])
+
+block: # -0.0 sorts before +0.0 (distinct bit patterns)
+  var a = @[0.0'f32, -0.0'f32]
+  csort.sort(a)
+  check("-0.0 before +0.0", cast[int32](a[0]) < 0) # -0.0 has sign bit set
+
+# Random lengths 2..1000
+for n in 2 .. 1000:
+  var a = newSeq[float32](n)
+  for i in 0 ..< n:
+    a[i] = float32(rand(-1_000.0 .. 1_000.0))
+  var expected = a
+  expected.sort()
+  csort.sort(a)
+  check(&"random n={n}", a == expected)
+
+echo &"  float32: {passed} passed, {failed} failed"
+
+let pF32 = passed
+let fF32 = failed
+passed = 0
+failed = 0
+
+# -- float64 tests --
+echo "=== float64 ==="
+
+block: # empty
+  var a: seq[float64]
+  csort.sort(a)
+  check("empty", a.len == 0)
+
+block: # single
+  var a = @[1.0]
+  csort.sort(a)
+  check("single", a == @[1.0])
+
+block: # two elements
+  var a = @[2.0, 1.0]
+  csort.sort(a)
+  check("two", a == @[1.0, 2.0])
+
+block: # reverse sorted
+  var a = @[5.0, 4.0, 3.0, 2.0, 1.0]
+  csort.sort(a)
+  check("reverse sorted", a == @[1.0, 2.0, 3.0, 4.0, 5.0])
+
+block: # all equal
+  var a = @[7.0, 7.0, 7.0, 7.0, 7.0]
+  csort.sort(a)
+  check("all equal", a == @[7.0, 7.0, 7.0, 7.0, 7.0])
+
+block: # negatives
+  var a = @[-5.0, 3.0, -1.0, 0.0, -100.0, 42.0, 7.0]
+  csort.sort(a)
+  var expected = @[-5.0, 3.0, -1.0, 0.0, -100.0, 42.0, 7.0]
+  expected.sort()
+  check("negatives", a == expected)
+
+block: # infinities sort at the ends
+  let posInf = 1.0 / 0.0
+  let negInf = -1.0 / 0.0
+  var a = @[posInf, 1.0, -1.0, negInf, 0.0]
+  csort.sort(a)
+  check("inf: -Inf first", a[0] == negInf)
+  check("inf: +Inf last",  a[4] == posInf)
+  check("inf: middle ordered", a[1] < a[2] and a[2] < a[3])
+
+block: # -0.0 sorts before +0.0
+  var a = @[0.0, -0.0]
+  csort.sort(a)
+  check("-0.0 before +0.0", cast[int64](a[0]) < 0)
+
+# Random lengths 2..1000
+for n in 2 .. 1000:
+  var a = newSeq[float64](n)
+  for i in 0 ..< n:
+    a[i] = rand(-1_000.0 .. 1_000.0)
+  var expected = a
+  expected.sort()
+  csort.sort(a)
+  check(&"random n={n}", a == expected)
+
+echo &"  float64: {passed} passed, {failed} failed"
+
+let totalTests = p32 + f32 + p64 + f64 + pLarge + fLarge + pF32 + fF32 + passed + failed
+let totalPass  = p32 + p64 + pLarge + pF32 + passed
+let totalFail  = f32 + f64 + fLarge + fF32 + failed
+echo &"\nTotal: {totalPass} passed, {totalFail} failed out of {totalTests}"
