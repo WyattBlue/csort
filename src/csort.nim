@@ -30,37 +30,73 @@ when defined(arm64) or defined(aarch64):
 
 elif defined(amd64):
   const HasSimd = true
-  {.passC: "-msse4.2".}
+  const UseAvx2 = defined(avx2) or defined(macosx)
 
-  # -- int32: 4-wide SSE4.1 --
-  const VecLen32 = 4
-  type Vec32 {.importc: "__m128i", header: "<smmintrin.h>".} = object
-  proc sseLoad(p: ptr Vec32): Vec32 {.importc: "_mm_loadu_si128", header: "<smmintrin.h>".}
-  proc sseStore(p: ptr Vec32, v: Vec32) {.importc: "_mm_storeu_si128", header: "<smmintrin.h>".}
-  proc sseMin32(a, b: Vec32): Vec32 {.importc: "_mm_min_epi32", header: "<smmintrin.h>".}
-  proc sseMax32(a, b: Vec32): Vec32 {.importc: "_mm_max_epi32", header: "<smmintrin.h>".}
+  when UseAvx2:
+    {.passC: "-mavx2".}
 
-  proc neonLoad32(p: ptr int32): Vec32 {.inline.} = sseLoad(cast[ptr Vec32](p))
-  proc neonStore32(p: ptr int32, v: Vec32) {.inline.} = sseStore(cast[ptr Vec32](p), v)
-  proc neonMin32(a, b: Vec32): Vec32 {.inline.} = sseMin32(a, b)
-  proc neonMax32(a, b: Vec32): Vec32 {.inline.} = sseMax32(a, b)
+    # -- int32: 8-wide AVX2 --
+    const VecLen32 = 8
+    type Vec32 {.importc: "__m256i", header: "<immintrin.h>".} = object
+    proc avx2Load(p: ptr Vec32): Vec32 {.importc: "_mm256_loadu_si256", header: "<immintrin.h>".}
+    proc avx2Store(p: ptr Vec32, v: Vec32) {.importc: "_mm256_storeu_si256", header: "<immintrin.h>".}
+    proc avx2Min32(a, b: Vec32): Vec32 {.importc: "_mm256_min_epi32", header: "<immintrin.h>".}
+    proc avx2Max32(a, b: Vec32): Vec32 {.importc: "_mm256_max_epi32", header: "<immintrin.h>".}
 
-  # -- int64: 2-wide SSE4.2 --
-  const VecLen64 = 2
-  type Vec64 = Vec32 # same __m128i type
-  proc sseCmpGt64(a, b: Vec64): Vec64 {.importc: "_mm_cmpgt_epi64", header: "<nmmintrin.h>".}
-  proc sseBlendv(a, b, mask: Vec64): Vec64 {.importc: "_mm_blendv_epi8", header: "<smmintrin.h>".}
+    proc neonLoad32(p: ptr int32): Vec32 {.inline.} = avx2Load(cast[ptr Vec32](p))
+    proc neonStore32(p: ptr int32, v: Vec32) {.inline.} = avx2Store(cast[ptr Vec32](p), v)
+    proc neonMin32(a, b: Vec32): Vec32 {.inline.} = avx2Min32(a, b)
+    proc neonMax32(a, b: Vec32): Vec32 {.inline.} = avx2Max32(a, b)
 
-  proc neonLoad64(p: ptr int64): Vec64 {.inline.} = sseLoad(cast[ptr Vec32](p))
-  proc neonStore64(p: ptr int64, v: Vec64) {.inline.} = sseStore(cast[ptr Vec32](p), v)
+    # -- int64: 4-wide AVX2 --
+    const VecLen64 = 4
+    type Vec64 = Vec32 # same __m256i type
+    proc avx2CmpGt64(a, b: Vec64): Vec64 {.importc: "_mm256_cmpgt_epi64", header: "<immintrin.h>".}
+    proc avx2Blendv(a, b, mask: Vec64): Vec64 {.importc: "_mm256_blendv_epi8", header: "<immintrin.h>".}
 
-  proc neonMin64(a, b: Vec64): Vec64 {.inline.} =
-    let mask = sseCmpGt64(a, b)
-    sseBlendv(a, b, mask) # pick b where a>b, else a
+    proc neonLoad64(p: ptr int64): Vec64 {.inline.} = avx2Load(cast[ptr Vec32](p))
+    proc neonStore64(p: ptr int64, v: Vec64) {.inline.} = avx2Store(cast[ptr Vec32](p), v)
 
-  proc neonMax64(a, b: Vec64): Vec64 {.inline.} =
-    let mask = sseCmpGt64(a, b)
-    sseBlendv(b, a, mask) # pick a where a>b, else b
+    proc neonMin64(a, b: Vec64): Vec64 {.inline.} =
+      let mask = avx2CmpGt64(a, b)
+      avx2Blendv(a, b, mask) # pick b where a>b, else a
+
+    proc neonMax64(a, b: Vec64): Vec64 {.inline.} =
+      let mask = avx2CmpGt64(a, b)
+      avx2Blendv(b, a, mask) # pick a where a>b, else b
+
+  else:
+    {.passC: "-msse4.2".}
+
+    # -- int32: 4-wide SSE4.1 --
+    const VecLen32 = 4
+    type Vec32 {.importc: "__m128i", header: "<smmintrin.h>".} = object
+    proc sseLoad(p: ptr Vec32): Vec32 {.importc: "_mm_loadu_si128", header: "<smmintrin.h>".}
+    proc sseStore(p: ptr Vec32, v: Vec32) {.importc: "_mm_storeu_si128", header: "<smmintrin.h>".}
+    proc sseMin32(a, b: Vec32): Vec32 {.importc: "_mm_min_epi32", header: "<smmintrin.h>".}
+    proc sseMax32(a, b: Vec32): Vec32 {.importc: "_mm_max_epi32", header: "<smmintrin.h>".}
+
+    proc neonLoad32(p: ptr int32): Vec32 {.inline.} = sseLoad(cast[ptr Vec32](p))
+    proc neonStore32(p: ptr int32, v: Vec32) {.inline.} = sseStore(cast[ptr Vec32](p), v)
+    proc neonMin32(a, b: Vec32): Vec32 {.inline.} = sseMin32(a, b)
+    proc neonMax32(a, b: Vec32): Vec32 {.inline.} = sseMax32(a, b)
+
+    # -- int64: 2-wide SSE4.2 --
+    const VecLen64 = 2
+    type Vec64 = Vec32 # same __m128i type
+    proc sseCmpGt64(a, b: Vec64): Vec64 {.importc: "_mm_cmpgt_epi64", header: "<nmmintrin.h>".}
+    proc sseBlendv(a, b, mask: Vec64): Vec64 {.importc: "_mm_blendv_epi8", header: "<smmintrin.h>".}
+
+    proc neonLoad64(p: ptr int64): Vec64 {.inline.} = sseLoad(cast[ptr Vec32](p))
+    proc neonStore64(p: ptr int64, v: Vec64) {.inline.} = sseStore(cast[ptr Vec32](p), v)
+
+    proc neonMin64(a, b: Vec64): Vec64 {.inline.} =
+      let mask = sseCmpGt64(a, b)
+      sseBlendv(a, b, mask) # pick b where a>b, else a
+
+    proc neonMax64(a, b: Vec64): Vec64 {.inline.} =
+      let mask = sseCmpGt64(a, b)
+      sseBlendv(b, a, mask) # pick a where a>b, else b
 
 else:
   const HasSimd = false
@@ -79,10 +115,9 @@ proc asmBarrier64(x: var uint64) {.inline.} =
   {.emit: ["__asm__ volatile(\"\" : \"+r\"(", x, "));"].}
 
 proc minmax(a, b: var int32) {.inline.} =
-  # Widen to 64-bit to avoid overflow on subtraction
-  let diff = b.int64 - a.int64
-  let signBit = cast[uint64](diff) shr 63  # 1 if a > b, 0 otherwise
-  var mask = cast[uint32](0'i32 - signBit.int32) # all 1s if a > b
+  # `a > b` compiles to cmp + setcc (constant-time)
+  let swap = uint32(ord(a > b))  # 0 or 1, branchless
+  var mask = not (swap - 1'u32)  # all 1s if a > b, all 0s otherwise
   asmBarrier32(mask)
   let d = cast[uint32](a) xor cast[uint32](b)
   let masked = d and mask
