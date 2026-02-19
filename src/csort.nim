@@ -311,6 +311,39 @@ proc sort*(items: var openArray[int]) =
   else:
     cSortCore(cast[ptr UncheckedArray[int64]](addr items[0]), items.len)
 
+# Unsigned sort: XOR each element with the high bit to map [0..UINT_MAX] ->
+# [INT_MIN..INT_MAX] preserving order, sort as signed integers, then un-map.
+
+proc sort*(items: var openArray[uint32]) =
+  let n = items.len
+  if n < 2: return
+  let idata = cast[ptr UncheckedArray[int32]](addr items[0])
+  for i in 0 ..< n: idata[i] = idata[i] xor low(int32)
+  cSortCore(idata, n)
+  for i in 0 ..< n: idata[i] = idata[i] xor low(int32)
+
+proc sort*(items: var openArray[uint64]) =
+  let n = items.len
+  if n < 2: return
+  let idata = cast[ptr UncheckedArray[int64]](addr items[0])
+  for i in 0 ..< n: idata[i] = idata[i] xor low(int64)
+  cSortCore(idata, n)
+  for i in 0 ..< n: idata[i] = idata[i] xor low(int64)
+
+proc sort*(items: var openArray[uint]) =
+  if items.len < 2: return
+  let n = items.len
+  when sizeof(uint) == 4:
+    let idata = cast[ptr UncheckedArray[int32]](addr items[0])
+    for i in 0 ..< n: idata[i] = idata[i] xor low(int32)
+    cSortCore(idata, n)
+    for i in 0 ..< n: idata[i] = idata[i] xor low(int32)
+  else:
+    let idata = cast[ptr UncheckedArray[int64]](addr items[0])
+    for i in 0 ..< n: idata[i] = idata[i] xor low(int64)
+    cSortCore(idata, n)
+    for i in 0 ..< n: idata[i] = idata[i] xor low(int64)
+
 # Float sort: transform bit-patterns to sort keys, sort as integers, untransform.
 # Resulting order: -NaN < -INF < ... < -0.0 < +0.0 < ... < +INF < +NaN
 
