@@ -40,7 +40,7 @@ randomize(42)
 
 echo &"Averaged over {Runs} runs\n"
 
-for n in [10_000, 100_000, 1_000_000]:
+for n in [1000, 10_000, 100_000, 1_000_000]:
   echo &"--- n = {n} ---"
   echo "  [int32]"
   bench32("  std sort  ", n, proc(a: var seq[int32]) = std.sort(a))
