@@ -2,51 +2,59 @@ import std/[random, monotimes, times, strformat]
 import std/algorithm as std
 import csort
 
-const Runs = 10
+const Runs = 5
 
-proc generateData32(n: int): seq[int32] =
-  result = newSeq[int32](n)
-  for i in 0 ..< n:
-    result[i] = rand(1_000_000).int32
+proc formatWithCommas(n: int): string =
+  let s = $n
+  var count = 0
+  for i in countdown(s.len - 1, 0):
+    if count > 0 and count mod 3 == 0:
+      result = ',' & result
+    result = s[i] & result
+    inc(count)
 
-proc generateData64(n: int): seq[int64] =
-  result = newSeq[int64](n)
-  for i in 0 ..< n:
-    result[i] = rand(1_000_000).int64
-
-proc bench32(name: string, n: int, sortProc: proc(a: var seq[int32])) =
+proc bench[T: int32 | int64](name: string, n: int, sortProc: proc(a: var seq[T])): int =
   var totalNs: int64 = 0
   for _ in 1 .. Runs:
-    var data = generateData32(n)
+    # Generate data
+    var data = newSeq[T](n)
+    for i in 0 ..< n:
+      data[i] = rand(1_000_000).T
+    # Start timer
     let start = getMonoTime()
     sortProc(data)
     let elapsed = getMonoTime() - start
     totalNs += elapsed.inNanoseconds
+
   let avgMs = totalNs.float64 / Runs.float64 / 1_000_000.0
-  echo &"  {name}: {avgMs:.3f} ms"
+  echo &"    {name}: {avgMs:.3f} ms"
+  return totalNs div Runs
 
-proc bench64(name: string, n: int, sortProc: proc(a: var seq[int64])) =
-  var totalNs: int64 = 0
-  for _ in 1 .. Runs:
-    var data = generateData64(n)
-    let start = getMonoTime()
-    sortProc(data)
-    let elapsed = getMonoTime() - start
-    totalNs += elapsed.inNanoseconds
-  let avgMs = totalNs.float64 / Runs.float64 / 1_000_000.0
-  echo &"  {name}: {avgMs:.3f} ms"
+proc diff(old, new: int) =
+  let ret = old / new
+  if ret < 1:
+    echo &"    result: {ret:.3f}x (slower)"
+  else:
+    echo &"    result: {ret:.3f}x faster"
 
-randomize(42)
+proc main =
+  randomize(42)
+  echo &"Averaged over {Runs} runs\n"
 
-echo &"Averaged over {Runs} runs\n"
+  var old: int
+  var new: int
+  for n in [100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000]:
+    echo &"--- n = {n.formatWithCommas} ---"
+    echo "  [int32]"
+    old = bench("std sort  ", n, proc(a: var seq[int32]) = std.sort(a))
+    new = bench("SIMD csort", n, proc(a: var seq[int32]) = csort.sort(a))
+    diff(old, new)
 
-for n in [1000, 10_000, 100_000, 1_000_000]:
-  echo &"--- n = {n} ---"
-  echo "  [int32]"
-  bench32("  std sort  ", n, proc(a: var seq[int32]) = std.sort(a))
-  bench32("  SIMD csort", n, proc(a: var seq[int32]) = csort.sort(a))
+    echo "  [int64]"
+    old = bench("std sort  ", n, proc(a: var seq[int64]) = std.sort(a))
+    new = bench("SIMD csort", n, proc(a: var seq[int64]) = csort.sort(a))
+    diff(old, new)
+    echo ""
 
-  echo "  [int64]"
-  bench64("  std sort  ", n, proc(a: var seq[int64]) = std.sort(a))
-  bench64("  SIMD csort", n, proc(a: var seq[int64]) = csort.sort(a))
-  echo ""
+when isMainModule:
+  main()
