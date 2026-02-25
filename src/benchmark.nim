@@ -19,7 +19,7 @@ proc bench[T: int32 | int64](name: string, n: int, sortProc: proc(a: var seq[T])
     # Generate data
     var data = newSeq[T](n)
     for i in 0 ..< n:
-      data[i] = rand(1_000_000).T
+      data[i] = rand(T.high).T
     # Start timer
     let start = getMonoTime()
     sortProc(data)
