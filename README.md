@@ -1,10 +1,14 @@
 # csort
 
-A constant-time sorting network. By using SIMD instructions, it achieves 2-5x faster times than Nim's `std/sort` for reasonable sized arrays.
+csort is as constant-time sorting network. By using SIMD instructions, it achieves 2-5x faster times than Nim's `std/sort` for reasonable sized arrays.
 
 By being in constant-time, no matter what the data is, it makes it immune to timing side-channels. This matters if you need to sort sensitive data in cryptographic contexts.
 
+
 ## Usage
+```
+nimble install csort
+```
 
 ```nim
 import csort 
