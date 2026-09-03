@@ -98,6 +98,43 @@ elif defined(amd64):
       let mask = sseCmpGt64(a, b)
       sseBlendv(b, a, mask) # pick a where a>b, else b
 
+elif defined(wasm):
+  const HasSimd = true
+  {.passC: "-msimd128".}
+
+  # WebAssembly simd128 uses one 128-bit type for every lane width.
+  type Vec128 {.importc: "v128_t", header: "<wasm_simd128.h>".} = object
+  proc wasmLoad(p: pointer): Vec128 {.importc: "wasm_v128_load", header: "<wasm_simd128.h>".}
+  proc wasmStore(p: pointer, v: Vec128) {.importc: "wasm_v128_store", header: "<wasm_simd128.h>".}
+  proc wasmBitselect(a, b, mask: Vec128): Vec128 {.importc: "wasm_v128_bitselect", header: "<wasm_simd128.h>".}
+
+  # -- int32: 4-wide simd128 --
+  const VecLen32 = 4
+  type Vec32 = Vec128
+  proc wasmMin32(a, b: Vec32): Vec32 {.importc: "wasm_i32x4_min", header: "<wasm_simd128.h>".}
+  proc wasmMax32(a, b: Vec32): Vec32 {.importc: "wasm_i32x4_max", header: "<wasm_simd128.h>".}
+
+  proc neonLoad32(p: ptr int32): Vec32 {.inline.} = wasmLoad(p)
+  proc neonStore32(p: ptr int32, v: Vec32) {.inline.} = wasmStore(p, v)
+  proc neonMin32(a, b: Vec32): Vec32 {.inline.} = wasmMin32(a, b)
+  proc neonMax32(a, b: Vec32): Vec32 {.inline.} = wasmMax32(a, b)
+
+  # -- int64: 2-wide simd128 (compare + bitselect; there is no i64x2 min/max) --
+  const VecLen64 = 2
+  type Vec64 = Vec128
+  proc wasmCgtS64(a, b: Vec64): Vec64 {.importc: "wasm_i64x2_gt", header: "<wasm_simd128.h>".}
+
+  proc neonLoad64(p: ptr int64): Vec64 {.inline.} = wasmLoad(p)
+  proc neonStore64(p: ptr int64, v: Vec64) {.inline.} = wasmStore(p, v)
+
+  proc neonMin64(a, b: Vec64): Vec64 {.inline.} =
+    let mask = wasmCgtS64(a, b) # true where a > b
+    wasmBitselect(b, a, mask)   # pick b where a>b, else a
+
+  proc neonMax64(a, b: Vec64): Vec64 {.inline.} =
+    let mask = wasmCgtS64(a, b)
+    wasmBitselect(a, b, mask)   # pick a where a>b, else b
+
 else:
   const HasSimd = false
   const VecLen32 = 0
