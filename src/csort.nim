@@ -153,6 +153,8 @@ proc floatSortKey(s: int64): int64 {.inline.} =
   let mask = cast[int64](0'u64 - sign)
   s xor (mask and high(int64))
 
+{.push overflowChecks: off.}
+
 proc cascade[T: int32 | int64](data: ptr UncheckedArray[T], j, p, q: int) {.inline.} =
   var a = data[j + p]
   var r = q
@@ -296,6 +298,8 @@ proc cSortCore[T: int32 | int64](data: ptr UncheckedArray[T], n: int) =
       q = q shr 1
 
     p = p shr 1
+
+{.pop.}
 
 proc sort*[T: int32 | int64](items: var openArray[T]) =
   if items.len < 2: return
